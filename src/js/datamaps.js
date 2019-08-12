@@ -723,16 +723,21 @@
   ***************************************/
 
   function Datamap( options ) {
-
     if ( typeof d3 === 'undefined' || typeof topojson === 'undefined' ) {
       throw new Error('Include d3.js (v3.0.3 or greater) and topojson on this page before creating a new map');
-   }
+    }
+    
     // Set options for global use
     this.options = defaults(options, defaultOptions);
     this.options.geographyConfig = defaults(options.geographyConfig, defaultOptions.geographyConfig);
     this.options.projectionConfig = defaults(options.projectionConfig, defaultOptions.projectionConfig);
     this.options.bubblesConfig = defaults(options.bubblesConfig, defaultOptions.bubblesConfig);
     this.options.arcConfig = defaults(options.arcConfig, defaultOptions.arcConfig);
+
+    // define the user ratio if required
+    if (options.width && options.height && options.width > 0 && options.height > 0) {
+      this.options.aspectRatio = height / width;
+    }
 
     // Add the SVG container
     if (d3.select( this.options.element ).select('svg').size() === 0) {
