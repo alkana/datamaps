@@ -39,7 +39,7 @@ To compile from source, you need npm and grunt
 5. exec "grunt build" (generate datamaps.world[.min].js)
 6. exec "node --max-old-space-size=2048 /usr/bin/grunt --gruntfile Gruntfile-world.js build" (generate others datamaps)
 
-The step 5 require lot of memory, if you have memory leap exception, try to increase the param max-old-space
+The step 6 require lot of memory, if you have memory leap exception, try to increase the param max-old-space
 
 #### Getting Started
 
