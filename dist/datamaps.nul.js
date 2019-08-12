@@ -1,7 +1,7 @@
 (function() {
   var svg;
 
-  //save off default references
+  // Save off default references
   var d3 = window.d3, topojson = window.topojson;
 
   var defaultOptions = {
@@ -13,6 +13,8 @@
     dataType: 'json',
     data: {},
     done: function() {},
+    zoom: null,
+    zoomScale: [1, 2],
     fills: {
       defaultFill: '#ABDDA4'
     },
@@ -22,6 +24,7 @@
         hideAntarctica: true,
         hideHawaiiAndAlaska : false,
         borderWidth: 1,
+        borderOpacity: 1,
         borderColor: '#FDFDFD',
         popupTemplate: function(geography, data) {
           return '<div class="hoverinfo"><strong>' + geography.properties.name + '</strong></div>';
@@ -30,13 +33,15 @@
         highlightOnHover: true,
         highlightFillColor: '#FC8D59',
         highlightBorderColor: 'rgba(250, 15, 160, 0.2)',
-        highlightBorderWidth: 2
+        highlightBorderWidth: 2,
+        highlightBorderOpacity: 1
     },
     projectionConfig: {
       rotation: [97, 0]
     },
     bubblesConfig: {
         borderWidth: 2,
+        borderOpacity: 1,
         borderColor: '#FFFFFF',
         popupOnHover: true,
         radius: null,
@@ -49,6 +54,7 @@
         highlightFillColor: '#FC8D59',
         highlightBorderColor: 'rgba(250, 15, 160, 0.2)',
         highlightBorderWidth: 2,
+        highlightBorderOpacity: 1,
         highlightFillOpacity: 0.85,
         exitDelay: 100,
         key: JSON.stringify
@@ -57,7 +63,22 @@
       strokeColor: '#DD1C77',
       strokeWidth: 1,
       arcSharpness: 1,
-      animationSpeed: 600
+      animationSpeed: 600,
+      popupOnHover: false,
+      popupTemplate: function(geography, data) {
+        // Case with latitude and longitude
+        if ( ( data.origin && data.destination ) && data.origin.latitude && data.origin.longitude && data.destination.latitude && data.destination.longitude ) {
+          return '<div class="hoverinfo"><strong>Arc</strong><br>Origin: ' + JSON.stringify(data.origin) + '<br>Destination: ' + JSON.stringify(data.destination) + '</div>';
+        }
+        // Case with only country name
+        else if ( data.origin && data.destination ) {
+          return '<div class="hoverinfo"><strong>Arc</strong><br>' + data.origin + ' -> ' + data.destination + '</div>';
+        }
+        // Missing information
+        else {
+          return '';
+        }
+      }
     }
   };
 
@@ -88,18 +109,20 @@
   }
 
   function addContainer( element, height, width ) {
+    // prepare svg
     this.svg = d3.select( element ).append('svg')
       .attr('width', width || element.offsetWidth)
+      .attr('height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('data-width', width || element.offsetWidth)
+      .attr('data-height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('class', 'datamap')
-      .attr('height', height || element.offsetHeight)
-      .style('overflow', 'hidden'); // IE10+ doesn't respect height/width when map is zoomed in
+      .style('overflow', 'hidden') // IE10+ doesn't respect height/width when map is zoomed in
+    ;
 
     if (this.options.responsive) {
       d3.select(this.options.element).style({'position': 'relative', 'padding-bottom': (this.options.aspectRatio*100) + '%'});
       d3.select(this.options.element).select('svg').style({'position': 'absolute', 'width': '100%', 'height': '100%'});
       d3.select(this.options.element).select('svg').select('g').selectAll('path').style('vector-effect', 'non-scaling-stroke');
-
     }
 
     return this.svg;
@@ -117,12 +140,14 @@
     }
 
     if ( options.scope === 'usa' ) {
-      projection = d3.geo.albersUsa()
+      projection = d3.geoAlbersUsa()
         .scale(width)
         .translate([width / 2, height / 2]);
     }
     else if ( options.scope === 'world' ) {
-      projection = d3.geo[options.projection]()
+      var projection = options.projection.charAt(0).toUpperCase() + options.projection.slice(1);
+      
+      projection = d3['geo' + projection].call(this)
         .scale((width + 1) / 2 / Math.PI)
         .translate([width / 2, height / (options.projection === "mercator" ? 1.45 : 1.8)]);
     }
@@ -144,7 +169,7 @@
       projection.scale(250).clipAngle(90).rotate(options.projectionConfig.rotation)
     }
 
-    path = d3.geo.path()
+    path = d3.geoPath()
       .projection( projection );
 
     return {path: path, projection: projection};
@@ -161,7 +186,6 @@
     var fillData = this.options.fills,
         colorCodeData = this.options.data || {},
         geoConfig = this.options.geographyConfig;
-
 
     var subunits = this.svg.select('g.datamaps-subunits');
     if ( subunits.empty() ) {
@@ -193,9 +217,9 @@
         return JSON.stringify( colorCodeData[d.id]);
       })
       .style('fill', function(d) {
-        //if fillKey - use that
-        //otherwise check 'fill'
-        //otherwise check 'defaultFill'
+        // If fillKey - use that
+        // Otherwise check 'fill'
+        // Otherwise check 'defaultFill'
         var fillColor;
 
         var datum = colorCodeData[d.id];
@@ -210,6 +234,7 @@
         return fillColor;
       })
       .style('stroke-width', geoConfig.borderWidth)
+      .style('stroke-opacity', geoConfig.borderOpacity)
       .style('stroke', geoConfig.borderColor);
   }
 
@@ -236,10 +261,11 @@
               .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
               .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
               .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+              .style('stroke-opacity', val(datum.highlightBorderOpacity, options.highlightBorderOpacity, datum))
               .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
               .attr('data-previousAttributes', JSON.stringify(previousAttributes));
 
-            //as per discussion on https://github.com/markmarkoh/datamaps/issues/19
+            // As per discussion on https://github.com/markmarkoh/datamaps/issues/19
             if ( ! /((MSIE)|(Trident))/.test(navigator.userAgent) ) {
              moveToFront.call(this);
             }
@@ -253,7 +279,7 @@
           var $this = d3.select(this);
 
           if (options.highlightOnHover) {
-            //reapply previous attributes
+            // Reapply previous attributes
             var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
             for ( var attr in previousAttributes ) {
               $this.style(attr, previousAttributes[attr]);
@@ -269,7 +295,7 @@
     }
   }
 
-  //plugin to add a simple map legend
+  // Plugin to add a simple map legend
   function addLegend(layer, data, options) {
     data = data || {};
     if ( !this.options.fills ) {
@@ -306,7 +332,7 @@
   }
 
     function addGraticule ( layer, options ) {
-      var graticule = d3.geo.graticule();
+      var graticule = d3.geoGraticule();
       this.svg.insert("path", '.datamaps-subunits')
         .datum(graticule)
         .attr("class", "datamaps-graticule")
@@ -335,7 +361,7 @@
 
     var arcs = layer.selectAll('path.datamaps-arc').data( data, JSON.stringify );
 
-    var path = d3.geo.path()
+    var path = d3.geoPath()
         .projection(self.projection);
 
     arcs
@@ -351,12 +377,84 @@
             return val(datum.strokeWidth, options.strokeWidth, datum);
         })
         .attr('d', function(datum) {
-            var originXY = self.latLngToXY(val(datum.origin.latitude, datum), val(datum.origin.longitude, datum))
-            var destXY = self.latLngToXY(val(datum.destination.latitude, datum), val(datum.destination.longitude, datum));
+
+            var originXY, destXY;
+
+            if (typeof datum.origin === "string") {
+              switch (datum.origin) {
+                   case "CAN":
+                       originXY = self.latLngToXY(56.624472, -114.665293);
+                       break;
+                   case "CHL":
+                       originXY = self.latLngToXY(-33.448890, -70.669265);
+                       break;
+                   case "HRV":
+                       originXY = self.latLngToXY(45.815011, 15.981919);
+                       break;
+                   case "IDN":
+                       originXY = self.latLngToXY(-6.208763, 106.845599);
+                       break;
+                   case "JPN":
+                       originXY = self.latLngToXY(35.689487, 139.691706);
+                       break;
+                   case "MYS":
+                       originXY = self.latLngToXY(3.139003, 101.686855);
+                       break;
+                   case "NOR":
+                       originXY = self.latLngToXY(59.913869, 10.752245);
+                       break;
+                   case "USA":
+                       originXY = self.latLngToXY(41.140276, -100.760145);
+                       break;
+                   case "VNM":
+                       originXY = self.latLngToXY(21.027764, 105.834160);
+                       break;
+                   default:
+                       originXY = self.path.centroid(svg.select('path.' + datum.origin).data()[0]);
+               }
+            } else {
+              originXY = self.latLngToXY(val(datum.origin.latitude, datum), val(datum.origin.longitude, datum))
+            }
+
+            if (typeof datum.destination === 'string') {
+              switch (datum.destination) {
+                    case "CAN":
+                        destXY = self.latLngToXY(56.624472, -114.665293);
+                        break;
+                    case "CHL":
+                        destXY = self.latLngToXY(-33.448890, -70.669265);
+                        break;
+                    case "HRV":
+                        destXY = self.latLngToXY(45.815011, 15.981919);
+                        break;
+                    case "IDN":
+                        destXY = self.latLngToXY(-6.208763, 106.845599);
+                        break;
+                    case "JPN":
+                        destXY = self.latLngToXY(35.689487, 139.691706);
+                        break;
+                    case "MYS":
+                        destXY = self.latLngToXY(3.139003, 101.686855);
+                        break;
+                    case "NOR":
+                        destXY = self.latLngToXY(59.913869, 10.752245);
+                        break;
+                    case "USA":
+                        destXY = self.latLngToXY(41.140276, -100.760145);
+                        break;
+                    case "VNM":
+                        destXY = self.latLngToXY(21.027764, 105.834160);
+                        break;
+                    default:
+                        destXY = self.path.centroid(svg.select('path.' + datum.destination).data()[0]);
+              }
+            } else {
+              destXY = self.latLngToXY(val(datum.destination.latitude, datum), val(datum.destination.longitude, datum));
+            }
             var midXY = [ (originXY[0] + destXY[0]) / 2, (originXY[1] + destXY[1]) / 2];
             if (options.greatArc) {
                   // TODO: Move this to inside `if` clause when setting attr `d`
-              var greatArc = d3.geo.greatArc()
+              var greatArc = d3.geoGreatArc()
                   .source(function(d) { return [val(d.origin.longitude, d), val(d.origin.latitude, d)]; })
                   .target(function(d) { return [val(d.destination.longitude, d), val(d.destination.latitude, d)]; });
 
@@ -364,6 +462,21 @@
             }
             var sharpness = val(datum.arcSharpness, options.arcSharpness, datum);
             return "M" + originXY[0] + ',' + originXY[1] + "S" + (midXY[0] + (50 * sharpness)) + "," + (midXY[1] - (75 * sharpness)) + "," + destXY[0] + "," + destXY[1];
+        })
+        .attr('data-info', function(datum) {
+          return JSON.stringify(datum);
+        })
+        .on('mouseover', function ( datum ) {
+          var $this = d3.select(this);
+
+          if (options.popupOnHover) {
+            self.updatePopup($this, datum, options, svg);
+          }
+        })
+        .on('mouseout', function ( datum ) {
+          var $this = d3.select(this);
+
+          d3.selectAll('.datamaps-hoverover').style('display', 'none');
         })
         .transition()
           .delay(100)
@@ -395,6 +508,9 @@
     this.svg.selectAll(".datamaps-subunit")
       .attr("data-foo", function(d) {
         var center = self.path.centroid(d);
+        if ( d.properties.iso === 'USA' ) {
+            center = self.projection([-98.58333, 39.83333])
+        }
         var xOffset = 7.5, yOffset = 5;
 
         if ( ["FL", "KY", "MI"].indexOf(d.id) > -1 ) xOffset = -2.5;
@@ -421,13 +537,20 @@
             .style("stroke-width", options.lineWidth || 1)
         }
 
-        layer.append("text")
-          .attr("x", x)
-          .attr("y", y)
-          .style("font-size", (options.fontSize || 10) + 'px')
-          .style("font-family", options.fontFamily || "Verdana")
-          .style("fill", options.labelColor || "#000")
-          .text( d.id );
+          layer.append("text")
+              .attr("x", x)
+              .attr("y", y)
+              .style("font-size", (options.fontSize || 10) + 'px')
+              .style("font-family", options.fontFamily || "Verdana")
+              .style("fill", options.labelColor || "#000")
+              .text(function() {
+                  if (options.customLabelText && options.customLabelText[d.id]) {
+                      return options.customLabelText[d.id]
+                  } else {
+                      return d.id
+                  }
+              });
+
         return "bar";
       });
   }
@@ -455,7 +578,11 @@
             latLng = self.latLngToXY(datum.latitude, datum.longitude);
           }
           else if ( datum.centered ) {
-            latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+            if ( datum.centered === 'USA' ) {
+              latLng = self.projection([-98.58333, 39.83333])
+            } else {
+              latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+            }
           }
           if ( latLng ) return latLng[0];
         })
@@ -465,16 +592,20 @@
             latLng = self.latLngToXY(datum.latitude, datum.longitude);
           }
           else if ( datum.centered ) {
-            latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+            if ( datum.centered === 'USA' ) {
+              latLng = self.projection([-98.58333, 39.83333])
+            } else {
+              latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+            }
           }
           if ( latLng ) return latLng[1];
         })
         .attr('r', function(datum) {
-          // if animation enabled start with radius 0, otherwise use full size.
+          // If animation enabled start with radius 0, otherwise use full size.
           return options.animate ? 0 : val(datum.radius, options.radius, datum);
         })
-        .attr('data-info', function(d) {
-          return JSON.stringify(d);
+        .attr('data-info', function(datum) {
+          return JSON.stringify(datum);
         })
         .attr('filter', function (datum) {
           var filterKey = filterData[ val(datum.filterKey, options.filterKey, datum) ];
@@ -489,6 +620,9 @@
         .style('stroke-width', function ( datum ) {
           return val(datum.borderWidth, options.borderWidth, datum);
         })
+        .style('stroke-opacity', function ( datum ) {
+          return val(datum.borderOpacity, options.borderOpacity, datum);
+        })
         .style('fill-opacity', function ( datum ) {
           return val(datum.fillOpacity, options.fillOpacity, datum);
         })
@@ -500,7 +634,7 @@
           var $this = d3.select(this);
 
           if (options.highlightOnHover) {
-            //save all previous attributes for mouseout
+            // Save all previous attributes for mouseout
             var previousAttributes = {
               'fill':  $this.style('fill'),
               'stroke': $this.style('stroke'),
@@ -512,6 +646,7 @@
               .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
               .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
               .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+              .style('stroke-opacity', val(datum.highlightBorderOpacity, options.highlightBorderOpacity, datum))
               .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
               .attr('data-previousAttributes', JSON.stringify(previousAttributes));
           }
@@ -524,7 +659,7 @@
           var $this = d3.select(this);
 
           if (options.highlightOnHover) {
-            //reapply previous attributes
+            // Reapply previous attributes
             var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
             for ( var attr in previousAttributes ) {
               $this.style(attr, previousAttributes[attr]);
@@ -538,6 +673,11 @@
       .duration(400)
       .attr('r', function ( datum ) {
         return val(datum.radius, options.radius, datum);
+      })
+    .transition()
+      .duration(0)
+      .attr('data-info', function(d) {
+        return JSON.stringify(d);
       });
 
     bubbles.exit()
@@ -551,12 +691,19 @@
     }
   }
 
-  //stolen from underscore.js
   function defaults(obj) {
     Array.prototype.slice.call(arguments, 1).forEach(function(source) {
       if (source) {
         for (var prop in source) {
-          if (obj[prop] == null) obj[prop] = source[prop];
+          // Deep copy if property not set
+          if (obj[prop] == null) {
+            if (typeof source[prop] == 'function') {
+              obj[prop] = source[prop];
+            }
+            else {
+              obj[prop] = JSON.parse(JSON.stringify(source[prop]));
+            }
+          }
         }
       }
     });
@@ -567,30 +714,47 @@
   ***************************************/
 
   function Datamap( options ) {
-
     if ( typeof d3 === 'undefined' || typeof topojson === 'undefined' ) {
-      throw new Error('Include d3.js (v3.0.3 or greater) and topojson on this page before creating a new map');
-   }
-    //set options for global use
+      throw new Error('Include d3.js (v5.0.0 or greater) and topojson on this page before creating a new map');
+    }
+    
+    // Set options for global use
     this.options = defaults(options, defaultOptions);
     this.options.geographyConfig = defaults(options.geographyConfig, defaultOptions.geographyConfig);
     this.options.projectionConfig = defaults(options.projectionConfig, defaultOptions.projectionConfig);
     this.options.bubblesConfig = defaults(options.bubblesConfig, defaultOptions.bubblesConfig);
     this.options.arcConfig = defaults(options.arcConfig, defaultOptions.arcConfig);
 
-    //add the SVG container
-    if ( d3.select( this.options.element ).select('svg').length > 0 ) {
-      addContainer.call(this, this.options.element, this.options.height, this.options.width );
+    // define the user ratio if required
+    if (options.width && options.height && options.width > 0 && options.height > 0) {
+      this.options.aspectRatio = height / width;
     }
 
-    /* Add core plugins to this instance */
+    // Add the SVG container if not already added manually
+    this.svg = d3.select(this.options.element).select('svg');
+    
+    if (this.svg.size() === 0) {
+      this.svg = addContainer.call(this, this.options.element, this.options.height, this.options.width);
+    }
+
+    // Add zoom  and seting up
+    this.zoom = d3.zoom()
+      .on("zoom", this.zoomed)
+      .scaleExtent(this.options.zoomScale)
+      .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+      .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+
+      // Attach to the svg
+    this.svg.call(this.zoom);
+
+    // Add core plugins to this instance
     this.addPlugin('bubbles', handleBubbles);
     this.addPlugin('legend', addLegend);
     this.addPlugin('arc', handleArcs);
     this.addPlugin('labels', handleLabels);
     this.addPlugin('graticule', addGraticule);
 
-    //append style block with basic hoverover styles
+    // Append style block with basic hoverover styles
     if ( ! this.options.disableDefaultStyles ) {
       addStyleBlock();
     }
@@ -598,33 +762,50 @@
     return this.draw();
   }
 
-  // resize map
+  // Resize map
   Datamap.prototype.resize = function () {
-
     var self = this;
     var options = self.options;
 
     if (options.responsive) {
-      var newsize = options.element.clientWidth,
-          oldsize = d3.select( options.element).select('svg').attr('data-width');
+      var svg = d3.select(options.element).select('svg'),
+          newWidth = options.element.clientWidth,
+          srcWidth = svg.attr('data-width'),
+          srcHeight = svg.attr('data-height'),
+          newScale = (newWidth / srcWidth);
 
-      d3.select(options.element).select('svg').selectAll('g').attr('transform', 'scale(' + (newsize / oldsize) + ')');
+      svg
+        .attr('width', newWidth)
+        .attr('height', (srcHeight * newScale));
+      
+      // redefine limits
+      this.zoom
+        .extent([[0, 0], [newWidth, srcHeight * newScale]])
+        .scaleExtent([newScale, options.zoomScale[1] + newScale - options.zoomScale[0]]);
+      
+      // resize
+      svg.call(this.zoom.transform, d3.zoomIdentity.scale(newScale));
     }
   }
+  
+  Datamap.prototype.zoomed = function () {
+    d3.select(this)
+      .selectAll('g.datamaps-subunits').attr('transform', d3.event.transform);
+  }
 
-  // actually draw the features(states & countries)
+  // Actually draw the features(states & countries)
   Datamap.prototype.draw = function() {
-    //save off in a closure
+    // Save off in a closure
     var self = this;
     var options = self.options;
 
-    //set projections and paths based on scope
-    var pathAndProjection = options.setProjection.apply(self, [options.element, options] );
+    // Set projections and paths based on scope
+    var pathAndProjection = options.setProjection.apply(this, [options.element, options] );
 
     this.path = pathAndProjection.path;
     this.projection = pathAndProjection.projection;
 
-    //if custom URL for topojson data, retrieve it and render
+    // If custom URL for topojson data, retrieve it and render
     if ( options.geographyConfig.dataUrl ) {
       d3.json( options.geographyConfig.dataUrl, function(error, results) {
         if ( error ) throw new Error(error);
@@ -639,11 +820,11 @@
     return this;
 
       function draw (data) {
-        // if fetching remote data, draw the map first then call `updateChoropleth`
+        // If fetching remote data, draw the map first then call `updateChoropleth`
         if ( self.options.dataUrl ) {
-          //allow for csv or json data types
+          // Allow for csv or json data types
           d3[self.options.dataType](self.options.dataUrl, function(data) {
-            //in the case of csv, transform data to object
+            // In the case of csv, transform data to object
             if ( self.options.dataType === 'csv' && (data && data.slice) ) {
               var tmpData = {};
               for(var i = 0; i < data.length; i++) {
@@ -664,7 +845,7 @@
             .style('position', 'absolute');
         }
 
-        //fire off finished callback
+        // Fire off finished callback
         self.options.done(self);
       }
   };
@@ -844,7 +1025,8 @@
   Datamap.prototype.nldTopo = '__NLD__';
   Datamap.prototype.nplTopo = '__NPL__';
   Datamap.prototype.nruTopo = '__NRU__';
-  Datamap.prototype.nulTopo = {"type":"Topology","objects":{"nul":{"type":"GeometryCollection","geometries":[{"type":"Polygon","properties":{"name":null},"id":"-99","arcs":[[0]]}]}},"arcs":[[[0,9999],[9999,0],[0,-9999],[-9999,0],[0,9999]]],"transform":{"scale":[9.053905432543252e-10,9.053905432543252e-10],"translate":[-0.000004544999911,-0.000004496999935]}};
+  Datamap.prototype.nulTopo = {"type":"Topology","objects":{"nul":{"type":"GeometryCollection","geometries":[{"type":"Polygon","properties":{"name":null},"id":"-99","arcs":[[0]]}]}},"arcs":[[[0,9999],[9999,0],[0,-9999],[-9999,0],[0,9999]]],"transform":{"scale":[9.053905432543252e-10,9.053905432543252e-10],"translate":[-0.000004544999911,-0.000004496999935]}}
+;
   Datamap.prototype.nzlTopo = '__NZL__';
   Datamap.prototype.omnTopo = '__OMN__';
   Datamap.prototype.pakTopo = '__PAK__';
@@ -932,12 +1114,12 @@
                 Utilities
   ***************************************/
 
-  //convert lat/lng coords to X / Y coords
+  // Convert lat/lng coords to X / Y coords
   Datamap.prototype.latLngToXY = function(lat, lng) {
      return this.projection([lng, lat]);
   };
 
-  //add <g> layer to root SVG
+  // Add <g> layer to root SVG
   Datamap.prototype.addLayer = function( className, id, first ) {
     var layer;
     if ( first ) {
@@ -950,8 +1132,19 @@
       .attr('class', className || '');
   };
 
-  Datamap.prototype.updateChoropleth = function(data) {
+  Datamap.prototype.updateChoropleth = function(data, options) {
     var svg = this.svg;
+    var that = this;
+
+    // When options.reset = true, reset all the fill colors to the defaultFill and kill all data-info
+    if ( options && options.reset === true ) {
+      svg.selectAll('.datamaps-subunit')
+        .attr('data-info', function() {
+           return "{}"
+        })
+        .transition().style('fill', this.options.fills.defaultFill)
+    }
+
     for ( var subunit in data ) {
       if ( data.hasOwnProperty(subunit) ) {
         var color;
@@ -965,10 +1158,13 @@
         else if ( typeof subunitData.color === "string" ) {
           color = subunitData.color;
         }
+        else if ( typeof subunitData.fillColor === "string" ) {
+          color = subunitData.fillColor;
+        }
         else {
           color = this.options.fills[ subunitData.fillKey ];
         }
-        //if it's an object, overriding the previous data
+        // If it's an object, overriding the previous data
         if ( subunitData === Object(subunitData) ) {
           this.options.data[subunit] = defaults(subunitData, this.options.data[subunit] || {});
           var geo = this.svg.select('.' + subunit).attr('data-info', JSON.stringify(this.options.data[subunit]));
@@ -982,12 +1178,15 @@
   };
 
   Datamap.prototype.updatePopup = function (element, d, options) {
-    var self = this;
-    element.on('mousemove', null);
+    var self = this,
+        parentNode = self.svg.select(function () { return this.parentNode; });
+    
     element.on('mousemove', function() {
-      var position = d3.mouse(self.options.element);
-      d3.select(self.svg[0][0].parentNode).select('.datamaps-hoverover')
-        .style('top', ( (position[1] + 30)) + "px")
+      var position = d3.mouse(self.options.element),
+          parentRect = parentNode.node().getBoundingClientRect();
+      
+      parentNode.select('.datamaps-hoverover')
+        .style('top', ( (parentRect.top + position[1] + 30)) + "px")
         .html(function() {
           var data = JSON.parse(element.attr('data-info'));
           try {
@@ -996,10 +1195,10 @@
             return "";
           }
         })
-        .style('left', ( position[0]) + "px");
+        .style('left', (parentRect.left + position[0]) + "px");
     });
 
-    d3.select(self.svg[0][0].parentNode).select('.datamaps-hoverover').style('display', 'block');
+    parentNode.select('.datamaps-hoverover').style('display', 'block');
   };
 
   Datamap.prototype.addPlugin = function( name, pluginFn ) {
@@ -1018,7 +1217,7 @@
 
         options = defaults(options || {}, self.options[name + 'Config']);
 
-        //add a single layer, reuse the old layer
+        // Add a single layer, reuse the old layer
         if ( !createNewLayer && this.options[name + 'Layer'] ) {
           layer = this.options[name + 'Layer'];
           options = options || this.options[name + 'Options'];
@@ -1036,7 +1235,7 @@
     }
   };
 
-  // expose library
+  // Expose library
   if (typeof exports === 'object') {
     d3 = require('d3');
     topojson = require('topojson');

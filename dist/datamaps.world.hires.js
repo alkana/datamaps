@@ -13,6 +13,8 @@
     dataType: 'json',
     data: {},
     done: function() {},
+    zoom: null,
+    zoomScale: [1, 2],
     fills: {
       defaultFill: '#ABDDA4'
     },
@@ -107,18 +109,20 @@
   }
 
   function addContainer( element, height, width ) {
+    // prepare svg
     this.svg = d3.select( element ).append('svg')
       .attr('width', width || element.offsetWidth)
+      .attr('height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('data-width', width || element.offsetWidth)
+      .attr('data-height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('class', 'datamap')
-      .attr('height', height || element.offsetHeight)
-      .style('overflow', 'hidden'); // IE10+ doesn't respect height/width when map is zoomed in
+      .style('overflow', 'hidden') // IE10+ doesn't respect height/width when map is zoomed in
+    ;
 
     if (this.options.responsive) {
       d3.select(this.options.element).style({'position': 'relative', 'padding-bottom': (this.options.aspectRatio*100) + '%'});
       d3.select(this.options.element).select('svg').style({'position': 'absolute', 'width': '100%', 'height': '100%'});
       d3.select(this.options.element).select('svg').select('g').selectAll('path').style('vector-effect', 'non-scaling-stroke');
-
     }
 
     return this.svg;
@@ -136,12 +140,14 @@
     }
 
     if ( options.scope === 'usa' ) {
-      projection = d3.geo.albersUsa()
+      projection = d3.geoAlbersUsa()
         .scale(width)
         .translate([width / 2, height / 2]);
     }
     else if ( options.scope === 'world' ) {
-      projection = d3.geo[options.projection]()
+      var projection = options.projection.charAt(0).toUpperCase() + options.projection.slice(1);
+      
+      projection = d3['geo' + projection].call(this)
         .scale((width + 1) / 2 / Math.PI)
         .translate([width / 2, height / (options.projection === "mercator" ? 1.45 : 1.8)]);
     }
@@ -163,7 +169,7 @@
       projection.scale(250).clipAngle(90).rotate(options.projectionConfig.rotation)
     }
 
-    path = d3.geo.path()
+    path = d3.geoPath()
       .projection( projection );
 
     return {path: path, projection: projection};
@@ -172,7 +178,7 @@
   function addStyleBlock() {
     if ( d3.select('.datamaps-style-block').empty() ) {
       d3.select('head').append('style').attr('class', 'datamaps-style-block')
-      .html('.datamap path.datamaps-graticule { fill: none; stroke: #777; stroke-width: 0.5px; stroke-opacity: .5; pointer-events: none; } .datamap .labels {pointer-events: none;} .datamap path:not(.datamaps-arc), .datamap circle, .datamap line {stroke: #FFFFFF; vector-effect: non-scaling-stroke; stroke-width: 1px;} .datamaps-legend dt, .datamaps-legend dd { float: left; margin: 0 3px 0 0;} .datamaps-legend dd {width: 20px; margin-right: 6px; border-radius: 3px;} .datamaps-legend {padding-bottom: 20px; z-index: 1001; position: absolute; left: 4px; font-size: 12px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;} .datamaps-hoverover {display: none; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; } .hoverinfo {padding: 4px; border-radius: 1px; background-color: #FFF; box-shadow: 1px 1px 5px #CCC; font-size: 12px; border: 1px solid #CCC; } .hoverinfo hr {border:1px dotted #CCC; }');
+      .html('.datamap path.datamaps-graticule { fill: none; stroke: #777; stroke-width: 0.5px; stroke-opacity: .5; pointer-events: none; } .datamap .labels {pointer-events: none;} .datamap path {stroke: #FFFFFF; stroke-width: 1px;} .datamaps-legend dt, .datamaps-legend dd { float: left; margin: 0 3px 0 0;} .datamaps-legend dd {width: 20px; margin-right: 6px; border-radius: 3px;} .datamaps-legend {padding-bottom: 20px; z-index: 1001; position: absolute; left: 4px; font-size: 12px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;} .datamaps-hoverover {display: none; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; } .hoverinfo {padding: 4px; border-radius: 1px; background-color: #FFF; box-shadow: 1px 1px 5px #CCC; font-size: 12px; border: 1px solid #CCC; } .hoverinfo hr {border:1px dotted #CCC; }');
     }
   }
 
@@ -326,7 +332,7 @@
   }
 
     function addGraticule ( layer, options ) {
-      var graticule = d3.geo.graticule();
+      var graticule = d3.geoGraticule();
       this.svg.insert("path", '.datamaps-subunits')
         .datum(graticule)
         .attr("class", "datamaps-graticule")
@@ -355,7 +361,7 @@
 
     var arcs = layer.selectAll('path.datamaps-arc').data( data, JSON.stringify );
 
-    var path = d3.geo.path()
+    var path = d3.geoPath()
         .projection(self.projection);
 
     arcs
@@ -381,6 +387,9 @@
                        break;
                    case "CHL":
                        originXY = self.latLngToXY(-33.448890, -70.669265);
+                       break;
+                   case "HRV":
+                       originXY = self.latLngToXY(45.815011, 15.981919);
                        break;
                    case "IDN":
                        originXY = self.latLngToXY(-6.208763, 106.845599);
@@ -409,11 +418,14 @@
 
             if (typeof datum.destination === 'string') {
               switch (datum.destination) {
-                     case "CAN":
+                    case "CAN":
                         destXY = self.latLngToXY(56.624472, -114.665293);
                         break;
                     case "CHL":
                         destXY = self.latLngToXY(-33.448890, -70.669265);
+                        break;
+                    case "HRV":
+                        destXY = self.latLngToXY(45.815011, 15.981919);
                         break;
                     case "IDN":
                         destXY = self.latLngToXY(-6.208763, 106.845599);
@@ -442,7 +454,7 @@
             var midXY = [ (originXY[0] + destXY[0]) / 2, (originXY[1] + destXY[1]) / 2];
             if (options.greatArc) {
                   // TODO: Move this to inside `if` clause when setting attr `d`
-              var greatArc = d3.geo.greatArc()
+              var greatArc = d3.geoGreatArc()
                   .source(function(d) { return [val(d.origin.longitude, d), val(d.origin.latitude, d)]; })
                   .target(function(d) { return [val(d.destination.longitude, d), val(d.destination.latitude, d)]; });
 
@@ -496,6 +508,9 @@
     this.svg.selectAll(".datamaps-subunit")
       .attr("data-foo", function(d) {
         var center = self.path.centroid(d);
+        if ( d.properties.iso === 'USA' ) {
+            center = self.projection([-98.58333, 39.83333])
+        }
         var xOffset = 7.5, yOffset = 5;
 
         if ( ["FL", "KY", "MI"].indexOf(d.id) > -1 ) xOffset = -2.5;
@@ -699,10 +714,10 @@
   ***************************************/
 
   function Datamap( options ) {
-
     if ( typeof d3 === 'undefined' || typeof topojson === 'undefined' ) {
-      throw new Error('Include d3.js (v3.0.3 or greater) and topojson on this page before creating a new map');
-   }
+      throw new Error('Include d3.js (v5.0.0 or greater) and topojson on this page before creating a new map');
+    }
+    
     // Set options for global use
     this.options = defaults(options, defaultOptions);
     this.options.geographyConfig = defaults(options.geographyConfig, defaultOptions.geographyConfig);
@@ -710,10 +725,27 @@
     this.options.bubblesConfig = defaults(options.bubblesConfig, defaultOptions.bubblesConfig);
     this.options.arcConfig = defaults(options.arcConfig, defaultOptions.arcConfig);
 
-    // Add the SVG container
-    if ( d3.select( this.options.element ).select('svg').length > 0 ) {
-      addContainer.call(this, this.options.element, this.options.height, this.options.width );
+    // define the user ratio if required
+    if (options.width && options.height && options.width > 0 && options.height > 0) {
+      this.options.aspectRatio = height / width;
     }
+
+    // Add the SVG container if not already added manually
+    this.svg = d3.select(this.options.element).select('svg');
+    
+    if (this.svg.size() === 0) {
+      this.svg = addContainer.call(this, this.options.element, this.options.height, this.options.width);
+    }
+
+    // Add zoom  and seting up
+    this.zoom = d3.zoom()
+      .on("zoom", this.zoomed)
+      .scaleExtent(this.options.zoomScale)
+      .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+      .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+
+      // Attach to the svg
+    this.svg.call(this.zoom);
 
     // Add core plugins to this instance
     this.addPlugin('bubbles', handleBubbles);
@@ -732,16 +764,33 @@
 
   // Resize map
   Datamap.prototype.resize = function () {
-
     var self = this;
     var options = self.options;
 
     if (options.responsive) {
-      var newsize = options.element.clientWidth,
-          oldsize = d3.select( options.element).select('svg').attr('data-width');
+      var svg = d3.select(options.element).select('svg'),
+          newWidth = options.element.clientWidth,
+          srcWidth = svg.attr('data-width'),
+          srcHeight = svg.attr('data-height'),
+          newScale = (newWidth / srcWidth);
 
-      d3.select(options.element).select('svg').selectAll('g').attr('transform', 'scale(' + (newsize / oldsize) + ')');
+      svg
+        .attr('width', newWidth)
+        .attr('height', (srcHeight * newScale));
+      
+      // redefine limits
+      this.zoom
+        .extent([[0, 0], [newWidth, srcHeight * newScale]])
+        .scaleExtent([newScale, options.zoomScale[1] + newScale - options.zoomScale[0]]);
+      
+      // resize
+      svg.call(this.zoom.transform, d3.zoomIdentity.scale(newScale));
     }
+  }
+  
+  Datamap.prototype.zoomed = function () {
+    d3.select(this)
+      .selectAll('g.datamaps-subunits').attr('transform', d3.event.transform);
   }
 
   // Actually draw the features(states & countries)
@@ -1129,12 +1178,15 @@
   };
 
   Datamap.prototype.updatePopup = function (element, d, options) {
-    var self = this;
-    element.on('mousemove', null);
+    var self = this,
+        parentNode = self.svg.select(function () { return this.parentNode; });
+    
     element.on('mousemove', function() {
-      var position = d3.mouse(self.options.element);
-      d3.select(self.svg[0][0].parentNode).select('.datamaps-hoverover')
-        .style('top', ( (position[1] + 30)) + "px")
+      var position = d3.mouse(self.options.element),
+          parentRect = parentNode.node().getBoundingClientRect();
+      
+      parentNode.select('.datamaps-hoverover')
+        .style('top', ( (parentRect.top + position[1] + 30)) + "px")
         .html(function() {
           var data = JSON.parse(element.attr('data-info'));
           try {
@@ -1143,10 +1195,10 @@
             return "";
           }
         })
-        .style('left', ( position[0]) + "px");
+        .style('left', (parentRect.left + position[0]) + "px");
     });
 
-    d3.select(self.svg[0][0].parentNode).select('.datamaps-hoverover').style('display', 'block');
+    parentNode.select('.datamaps-hoverover').style('display', 'block');
   };
 
   Datamap.prototype.addPlugin = function( name, pluginFn ) {
