@@ -109,29 +109,20 @@
   }
 
   function addContainer( element, height, width ) {
+    // prepare svg
     this.svg = d3.select( element ).append('svg')
       .attr('width', width || element.offsetWidth)
       .attr('height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('data-width', width || element.offsetWidth)
       .attr('data-height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('class', 'datamap')
-      .style('overflow', 'hidden'); // IE10+ doesn't respect height/width when map is zoomed in
+      .style('overflow', 'hidden') // IE10+ doesn't respect height/width when map is zoomed in
+    ;
 
     if (this.options.responsive) {
       d3.select(this.options.element).style({'position': 'relative', 'padding-bottom': (this.options.aspectRatio*100) + '%'});
       d3.select(this.options.element).select('svg').style({'position': 'absolute', 'width': '100%', 'height': '100%'});
       d3.select(this.options.element).select('svg').select('g').selectAll('path').style('vector-effect', 'non-scaling-stroke');
-      
-      // Adding a internal zoom
-      this.zoom = d3.zoom();
-      
-      this.zoom
-        .scaleExtent(this.options.zoomScale)
-        .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
-        .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
-        .on("zoom", this.zoomed);
-      
-      this.svg.call(this.zoom);
     }
 
     return this.svg;
@@ -724,7 +715,7 @@
 
   function Datamap( options ) {
     if ( typeof d3 === 'undefined' || typeof topojson === 'undefined' ) {
-      throw new Error('Include d3.js (v3.0.3 or greater) and topojson on this page before creating a new map');
+      throw new Error('Include d3.js (v5.0.0 or greater) and topojson on this page before creating a new map');
     }
     
     // Set options for global use
@@ -739,10 +730,22 @@
       this.options.aspectRatio = height / width;
     }
 
-    // Add the SVG container
-    if (d3.select( this.options.element ).select('svg').size() === 0) {
-      addContainer.call(this, this.options.element, this.options.height, this.options.width );
+    // Add the SVG container if not already added manually
+    this.svg = d3.select(this.options.element).select('svg');
+    
+    if (this.svg.size() === 0) {
+      this.svg = addContainer.call(this, this.options.element, this.options.height, this.options.width);
     }
+
+    // Add zoom  and seting up
+    this.zoom = d3.zoom()
+      .on("zoom", this.zoomed)
+      .scaleExtent(this.options.zoomScale)
+      .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+      .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+
+      // Attach to the svg
+    this.svg.call(this.zoom);
 
     // Add core plugins to this instance
     this.addPlugin('bubbles', handleBubbles);
@@ -786,10 +789,8 @@
   }
   
   Datamap.prototype.zoomed = function () {
-    var t = d3.event.transform;
-    
     d3.select(this)
-      .selectAll('g.datamaps-subunits').attr('transform', t);
+      .selectAll('g.datamaps-subunits').attr('transform', d3.event.transform);
   }
 
   // Actually draw the features(states & countries)
