@@ -14,6 +14,7 @@
     data: {},
     done: function() {},
     zoom: null,
+    zoomScale: [1, 2],
     fills: {
       defaultFill: '#ABDDA4'
     },
@@ -125,9 +126,9 @@
       this.zoom = d3.zoom();
       
       this.zoom
-        .scaleExtent([1, 10])
-        .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+        .scaleExtent(this.options.zoomScale)
         .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+        .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
         .on("zoom", this.zoomed);
       
       this.svg.call(this.zoom);
@@ -760,35 +761,27 @@
 
     if (options.responsive) {
       var svg = d3.select(options.element).select('svg'),
-          newsize = options.element.clientWidth,
-          oldsize = d3.select(options.element).select('svg').attr('data-width'),
-          oldHeight = d3.select(options.element).select('svg').attr('data-height');
+          newWidth = options.element.clientWidth,
+          srcWidth = svg.attr('data-width'),
+          srcHeight = svg.attr('data-height'),
+          newScale = (newWidth / srcWidth);
 
       svg
-        .attr('width', newsize)
-        .attr('height', oldHeight * (newsize / oldsize));
-    
-      // redefine zoom
-      this.zoom
-        .scaleExtent([(newsize / oldsize), 10])
-        .extent([[0, 0], [svg.attr('width'), svg.attr('height')]])
-        .translateExtent([[0, 0], [svg.attr('width'), svg.attr('height')]])
-      ;
+        .attr('width', newWidth)
+        .attr('height', (srcHeight * newScale));
       
-      this.zoom.scaleTo(svg, (newsize / oldsize));
+      // redefine limits
+      this.zoom
+        .extent([[0, 0], [newWidth, srcHeight * newScale]])
+        .scaleExtent([newScale, options.zoomScale[1] + newScale - options.zoomScale[0]]);
+      
+      // resize
+      svg.call(this.zoom.transform, d3.zoomIdentity.scale(newScale));
     }
   }
   
   Datamap.prototype.zoomed = function () {
     var t = d3.event.transform;
-    
-    if (t.x > 0) {
-      t.x = 0;
-    }
-    
-    if (t.y > 0) {
-      t.y = 0;
-    }
     
     d3.select(this)
       .selectAll('g.datamaps-subunits').attr('transform', t);
