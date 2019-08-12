@@ -7,3 +7,5 @@ rel
 tmp
 .idea
 /.vs
+/.project
+/.settings/

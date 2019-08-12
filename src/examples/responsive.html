@@ -1,26 +1,79 @@
-<!DOCTYPE html>
 <html>
-    <head>
-        <style>
-        .active { fill: blue !important;}  
-        </style>
-    </head>
-    <body>
-        <div id="container1"></div>
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-        <script src="../js/components/d3/d3.min.js"></script>
-        <script src="../js/components/topojson/topojson.js"></script>
-        <script src="../rel/datamaps.all.js"></script>
-        <script>
-            var map = new Datamap({
-                element: document.getElementById('container1'),
-                responsive: true
-            });
+  <head>
+    <meta charset="UTF-8">
+    <title>D3js Zooming work resize</title>
+    <!-- Use foundation -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.5.3/dist/css/foundation.min.css" integrity="sha256-xpOKVlYXzQ3P03j397+jWFZLMBXLES3IiryeClgU5og= sha384-gP4DhqyoT9b1vaikoHi9XQ8If7UNLO73JFOOlQV1RATrA7D0O7TjJZifac6NwPps sha512-AKwIib1E+xDeXe0tCgbc9uSvPwVYl6Awj7xl0FoaPFostZHOuDQ1abnDNCYtxL/HWEnVOMrFyf91TDgLPi9pNg==" crossorigin="anonymous">
 
-            window.addEventListener('resize', function(event){
-                map.resize();
-            });
-        </script>
-    </body>
+    <script src="https://d3js.org/d3.v5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+    
+    <script src="../js/datamaps.js"></script>
+    
+    <script type="text/javascript">
+      var map,
+          container;
+      
+      // call on load
+      var loadDatamap = function() {
+        // define the datamap container
+        container = d3.select('#container');
+        
+        // load the datamap
+        map = new Datamap({
+          responsive: true,
+          projection: 'mercator',
+          element: container.node()
+        });
+        
+        container.style('min-height', container.select('svg').node().getBoundingClientRect().height + 'px');
+      };
+
+      // call when the window is resized
+      var resizeDatamap = function() {
+        map.resize();
+        
+        container.style('min-height', container.select('svg').node().getBoundingClientRect().height + 'px')
+      };
+      
+      if(window.attachEvent) {
+        window.attachEvent('onload', loadDatamap);
+        window.attachEvent('onresize', resizeDatamap);
+      } else {
+        if(window.onload) {
+          var curronload = window.onload;
+          var newonload = function(evt) {
+              curronload(evt);
+              yourFunctionName(evt);
+          };
+          window.onload = newonload;
+        } else {
+          window.onload = loadDatamap;
+        }
+        
+        if (window.onresize) {
+          var curronresize = window.onresize;
+          var newonresize = function(evt) {
+              curronresize(evt);
+              resizeDatamap(evt);
+          };
+          window.onresize = newonresize;
+        } else {
+          window.onresize = resizeDatamap;
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="grid-container fluid">
+      <div class="grid-x grid-margin-x">
+        <div class="cell small-4"></div>
+        <div class="cell small-4" style="border: 1px solid blue;">
+          <div id="container"></div>
+          <div style="padding: auto auto; text-align: center;">World map resized and Zoomed by d3js-v5</div>
+        </div>
+        <div class="cell small-4"></div>
+      </div>
+    </div>
+  </body>
 </html>
-
