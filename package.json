@@ -8,7 +8,8 @@
     "Enrico Berti (https://github.com/enricoberti)",
     "Matteo Guarnerio (http://matteoguarnerio.com)",
     "Adrian Jones (https://github.com/adrianbj)",
-    "Dave Long <dave@davejlong.com> (https://github.com/davejlong)"
+    "Dave Long <dave@davejlong.com> (https://github.com/davejlong)",
+    "Alkana <unknown> (https://github.com/alkana)"
   ],
   "license": "MIT",
   "repository": {
@@ -23,16 +24,16 @@
     "topojson": "^3.0.2"
   },
   "devDependencies": {
-    "@types/d3": "^5.7.2",
     "grunt": "^1.0.4",
-    "grunt-contrib-clean": "~0.5.0",
-    "grunt-contrib-copy": "~0.4.1",
+    "grunt-contrib-clean": "^2.*",
+    "grunt-contrib-copy": "^1.*",
     "grunt-contrib-jasmine": "^2.1.0",
     "grunt-contrib-uglify": "^4.0.1",
     "grunt-contrib-watch": "^1.1.0",
-    "grunt-replace": "~0.4.4",
-    "grunt-sync-pkg": "^0.1.2",
-    "grunt-text-replace": "~0.3.6"
+    "grunt-replace": "git+https://github.com/alkana/grunt-replace.git",
+    "grunt-sync-pkg": "git+https://github.com/alkana/grunt-sync-pkg.git",
+    "grunt-text-replace": "^0.4.*",
+    "jasmine": "^3.4.0"
   },
   "types": "./src/index.d.ts"
 }
