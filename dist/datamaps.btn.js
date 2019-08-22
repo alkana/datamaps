@@ -14,7 +14,7 @@
     data: {},
     done: function() {},
     zoom: null,
-    zoomScale: [1, 2],
+    zoomScale: [1, 10],
     fills: {
       defaultFill: '#ABDDA4'
     },
@@ -117,6 +117,13 @@
       .attr('data-height', height || (width * this.options.aspectRatio) || element.offsetWidth * this.options.aspectRatio)
       .attr('class', 'datamap')
       .style('overflow', 'hidden') // IE10+ doesn't respect height/width when map is zoomed in
+    ;
+
+    // Fix height definition of the container
+    this.svg.select(function() { return this.parentNode; })
+      .style('height', height)
+      .style('min-height', height)
+      .style('max-height', height)
     ;
 
     if (this.options.responsive) {
@@ -717,7 +724,7 @@
     if ( typeof d3 === 'undefined' || typeof topojson === 'undefined' ) {
       throw new Error('Include d3.js (v5.0.0 or greater) and topojson on this page before creating a new map');
     }
-    
+
     // Set options for global use
     this.options = defaults(options, defaultOptions);
     this.options.geographyConfig = defaults(options.geographyConfig, defaultOptions.geographyConfig);
@@ -741,8 +748,8 @@
     this.zoom = d3.zoom()
       .on("zoom", this.zoomed)
       .scaleExtent(this.options.zoomScale)
-      .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
-      .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('data-height')]])
+      .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('height')]])
+      .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('height')]])
 
       // Attach to the svg
     this.svg.call(this.zoom);
@@ -767,30 +774,48 @@
     var self = this;
     var options = self.options;
 
-    if (options.responsive) {
-      var svg = d3.select(options.element).select('svg'),
-          newWidth = options.element.clientWidth,
-          srcWidth = svg.attr('data-width'),
-          srcHeight = svg.attr('data-height'),
-          newScale = (newWidth / srcWidth);
-
-      svg
-        .attr('width', newWidth)
-        .attr('height', (srcHeight * newScale));
-      
-      // redefine limits
-      this.zoom
-        .extent([[0, 0], [newWidth, srcHeight * newScale]])
-        .scaleExtent([newScale, options.zoomScale[1] + newScale - options.zoomScale[0]]);
-      
-      // resize
-      svg.call(this.zoom.transform, d3.zoomIdentity.scale(newScale));
+    if (!options.responsive) {
+      return;
     }
+
+    var svg = d3.select(options.element).select('svg'),
+        newHeight = (options.element.clientWidth * options.aspectRatio),
+        g = svg.select('.datamaps-subunits'),
+        cgSize = g.node().getBoundingClientRect(),
+        cTransform = d3.zoomTransform(svg.node()),
+        newTransform = d3.zoomIdentity.scale(cTransform.k)
+    ;
+
+    // resize container height for recalculate path geo data
+    svg.select(function() { return this.parentNode; })
+      .style('height', newHeight)
+      .style('min-height', newHeight)
+      .style('max-height', newHeight)
+    ;
+
+    // resize svg himself
+    svg
+      .attr('height', newHeight)
+      .attr('width', options.element.clientWidth)
+
+    // redraw subunit
+    g.selectAll('path').remove();
+    this.path = this.options.setProjection.call(this, options.element, options).path;
+    drawSubunits.call(this, this[options.scope + 'Topo'] || this.options.geographyConfig.dataJson);
+
+    // rezoom at the same point
+    var ngSize = g.node().getBoundingClientRect();
+    
+    // rescale if the actual scale is not into the limit
+    newTransform.x = cTransform.x / (cgSize.width / ngSize.width);
+    newTransform.y = cTransform.y / (cgSize.height / ngSize.height);
+    
+    svg.call(this.zoom.transform, newTransform);
   }
   
   Datamap.prototype.zoomed = function () {
     d3.select(this)
-      .selectAll('g.datamaps-subunits').attr('transform', d3.event.transform);
+      .select('g.datamaps-subunits').attr('transform', d3.event.transform);
   }
 
   // Actually draw the features(states & countries)
