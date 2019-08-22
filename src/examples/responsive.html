@@ -25,15 +25,11 @@
           projection: 'mercator',
           element: container.node()
         });
-        
-        container.style('min-height', container.select('svg').node().getBoundingClientRect().height + 'px');
       };
 
       // call when the window is resized
       var resizeDatamap = function() {
         map.resize();
-        
-        container.style('min-height', container.select('svg').node().getBoundingClientRect().height + 'px')
       };
       
       if(window.attachEvent) {
