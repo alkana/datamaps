@@ -20,11 +20,7 @@ Out of the box it includes support for choropleths and bubble maps (see [demos](
 
 Downloads:
 
- - [World map (94kb, 36.7kb gzip'd)](http://datamaps.github.io/scripts/0.4.4/datamaps.world.min.js)
- - [USA only (35kb, 13.9kb gzip'd)](http://datamaps.github.io/scripts/0.4.4/datamaps.usa.min.js)
- - [USA & World (131kb, 47.1kb gzip'd)](http://datamaps.github.io/scripts/0.4.4/datamaps.all.min.js)
- - [No preset topojson (6.8kb, 2.3kb gzip'd)](http://datamaps.github.io/scripts/0.4.4/datamaps.none.min.js)
-
+ - [All maps (94kb, 36.7kb gzip'd)](https://github.com/alkana/datamaps/archive/v0.5.10a4.zip)
 
 ### Documentation
 
