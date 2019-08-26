@@ -732,9 +732,14 @@
     this.options.bubblesConfig = defaults(options.bubblesConfig, defaultOptions.bubblesConfig);
     this.options.arcConfig = defaults(options.arcConfig, defaultOptions.arcConfig);
 
-    // define the user ratio if required
+    // if responsive is check, we remove all width/height definition
+    if (options.responsive) {
+      this.options.width = undefined;
+      this.options.height = undefined;
+    }
+    
     if (options.width && options.height && options.width > 0 && options.height > 0) {
-      this.options.aspectRatio = height / width;
+      this.options.aspectRatio = options.height / options.width;
     }
 
     // Add the SVG container if not already added manually
