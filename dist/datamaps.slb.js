@@ -755,6 +755,7 @@
       .scaleExtent(this.options.zoomScale)
       .extent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('height')]])
       .translateExtent([[0, 0], [this.svg.attr('data-width'), this.svg.attr('height')]])
+    ;
 
       // Attach to the svg
     this.svg.call(this.zoom);
@@ -810,8 +811,12 @@
     this.options.height = newHeight;
     this.options.width = options.element.clientWidth;
     this.path = this.options.setProjection.call(this, options.element, options).path;
+    
+    // draw subunits
     drawSubunits.call(this, this[options.scope + 'Topo'] || this.options.geographyConfig.dataJson);
-
+    // Add subunits events
+    handleGeographyConfig.call(this);
+    
     // rezoom at the same point
     var ngSize = g.node().getBoundingClientRect();
     
@@ -819,10 +824,15 @@
     newTransform.x = cTransform.x / (cgSize.width / ngSize.width);
     newTransform.y = cTransform.y / (cgSize.height / ngSize.height);
     
-    this.zoom.extent([
-      [0, 0],
-      [options.element.clientWidth, newHeight]
-    ]);
+    this.zoom
+      .extent([
+        [0, 0],
+        [options.element.clientWidth, newHeight]
+      ])
+      .translateExtent([
+        [0, 0],
+        [options.element.clientWidth, newHeight]
+      ]);
     
     svg.call(this.zoom.transform, newTransform);
   }
