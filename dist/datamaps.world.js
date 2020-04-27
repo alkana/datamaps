@@ -12656,30 +12656,42 @@
 
     for ( var subunit in data ) {
       if ( data.hasOwnProperty(subunit) ) {
-        var color;
-        var subunitData = data[subunit]
-        if ( ! subunit ) {
+        var color,
+            subunitData = data[subunit],
+            geo = this.svg.select('.' + subunit);
+        
+        if (!subunit || geo.size() === 0) {
           continue;
-        }
-        else if ( typeof subunitData === "string" ) {
+        } else if ( typeof subunitData === "string" ) {
           color = subunitData;
-        }
-        else if ( typeof subunitData.color === "string" ) {
+        } else if ( typeof subunitData.color === "string" ) {
           color = subunitData.color;
-        }
-        else if ( typeof subunitData.fillColor === "string" ) {
+        } else if ( typeof subunitData.fillColor === "string" ) {
           color = subunitData.fillColor;
-        }
-        else {
+        } else {
           color = this.options.fills[ subunitData.fillKey ];
         }
+        
+        color = d3.color(color).formatRgb();
+        
         // If it's an object, overriding the previous data
         if ( subunitData === Object(subunitData) ) {
           this.options.data[subunit] = defaults(subunitData, this.options.data[subunit] || {});
-          var geo = this.svg.select('.' + subunit).attr('data-info', JSON.stringify(this.options.data[subunit]));
+          this.svg.select('.' + subunit).attr('data-info', JSON.stringify(this.options.data[subunit]));
+          
+          // change color into previousAttribute (The highlightOnHover must rollback the color to the new one)
+          if (this.options.geographyConfig.highlightOnHover) {
+            var previousAttributes = JSON.parse(geo.attr('data-previousAttributes'));
+            
+            if (previousAttributes !== null) {
+              previousAttributes.fill = color;
+              geo.attr('data-previousAttributes', JSON.stringify(previousAttributes));
+            }
+          }
         }
+        
         svg
-          .selectAll('.' + subunit)
+          .select('.' + subunit)
           .transition()
             .style('fill', color);
       }

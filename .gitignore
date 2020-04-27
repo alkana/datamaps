@@ -6,6 +6,8 @@ bower_components
 rel
 tmp
 .idea
+.classpath
 /.vs
 /.project
 /.settings/
+/bin/

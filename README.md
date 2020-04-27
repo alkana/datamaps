@@ -33,9 +33,11 @@ To compile from source, you need npm and grunt
 3. exec "npm install" (install dependencies)
 4. exec "bower install" (or "bower update")
 5. exec "grunt build" (generate datamaps.world[.min].js)
-6. exec "node --max-old-space-size=2048 /usr/bin/grunt --gruntfile Gruntfile-world.js build" (generate others datamaps)
+6. exec "node --max-old-space-size=2048 /usr/local/bin/grunt --gruntfile Gruntfile-world.js build" (generate others datamaps)
 
 The step 6 require lot of memory, if you have memory leap exception, try to increase the param max-old-space
+
+The step 6 can give you this error "Cannot find module '/usr/bin/grunt'", try with /usr/local/bin/grunt else check your grunt install folder
 
 #### Getting Started
 
